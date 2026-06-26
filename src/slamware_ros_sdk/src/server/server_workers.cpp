@@ -79,16 +79,8 @@ namespace slamware_ros_sdk {
         odom.twist.twist.angular.z = vth;
         pubOdometry_->publish(odom);
 
-        auto &tfBrdcst = tfBroadcaster();
-        geometry_msgs::msg::TransformStamped odomTrans;
-        odomTrans.header.stamp = currentPoseStamped.header.stamp;
-        odomTrans.header.frame_id = srvParams.getParameter<std::string>("odom_frame");
-        odomTrans.child_frame_id = srvParams.getParameter<std::string>("robot_frame");
-        odomTrans.transform.translation.x = currentPoseStamped.pose.position.x;
-        odomTrans.transform.translation.y = currentPoseStamped.pose.position.y;
-        odomTrans.transform.translation.z = currentPoseStamped.pose.position.z;
-        odomTrans.transform.rotation = currentPoseStamped.pose.orientation;
-        tfBrdcst->sendTransform(odomTrans);
+        // odom->base_link TF는 ekf_local(robot_localization)이 단독 broadcast한다.
+        // 여기서 broadcast하면 절대 pose 기반 TF가 ekf_local과 충돌해 위치가 튄다.
 
         lastPoseStamped_ = currentPoseStamped;
     }
