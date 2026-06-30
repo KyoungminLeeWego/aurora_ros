@@ -68,9 +68,11 @@ namespace slamware_ros_sdk {
         this->declare_parameter<std::string>("imu_raw_data_topic", "/slamware_ros_sdk_server_node/imu_raw_data");
 
         // false: enable compressed image stream, true: disable this stream to save cpu cost
-        this->declare_parameter<bool>("no_preview_image", false); 
+        this->declare_parameter<bool>("no_preview_image", false);
         //false: disable raw image stream, true: enable raw image stream,please make sure the network bandwidth is no less than 300mbps
-        this->declare_parameter<bool>("raw_image_on", false); 
+        this->declare_parameter<bool>("raw_image_on", false);
+        // true: odom_frame→robot_frame TF broadcast (매핑 전용). navigation 시 false 필수.
+        this->declare_parameter<bool>("broadcast_tf", false);
     }
 
     void ServerParams::setBy(const std::shared_ptr<rclcpp::Node> nhRos)
@@ -206,6 +208,9 @@ namespace slamware_ros_sdk {
         }
         if (nhRos->has_parameter("raw_image_on")) {
             nhRos->declare_parameter<bool>("raw_image_on", bVal);
+        }
+        if (nhRos->has_parameter("broadcast_tf")) {
+            nhRos->declare_parameter<bool>("broadcast_tf", bVal);
         }
     }
 
