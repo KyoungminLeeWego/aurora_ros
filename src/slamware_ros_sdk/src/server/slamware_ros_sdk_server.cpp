@@ -350,6 +350,10 @@ namespace slamware_ros_sdk {
             relocalization_request_srv_ = this->create_service<slamware_ros_sdk::srv::RelocalizationRequest>(
                 "/slamware_ros_sdk_server_node/relocalization",
                 std::bind(&SlamwareRosSdkServer::srvCbRelocalizationRequest_, this, std::placeholders::_1, std::placeholders::_2));
+
+            local_relocalization_request_srv_ = this->create_service<slamware_ros_sdk::srv::LocalRelocalizationRequest>(
+                "/slamware_ros_sdk_server_node/local_relocalization",
+                std::bind(&SlamwareRosSdkServer::srvCbLocalRelocalizationRequest_, this, std::placeholders::_1, std::placeholders::_2));
         }
         return true;
     }
@@ -663,6 +667,11 @@ namespace slamware_ros_sdk {
                 auto promise = reinterpret_cast<std::promise<bool> *>(userData);
                 promise->set_value(isOK != 0);
             };
+            // 이전 세션이 남아 있으면 abort 후 진행 — 세션 충돌로 인한 업로드 실패 방지
+            if (aurora->mapManager.isSessionActive()) {
+                RCLCPP_WARN(rclcpp::get_logger("rclcpp"), "Map storage session already active, aborting before retry");
+                aurora->mapManager.abortSession();
+            }
             RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Starting map upload %s", req->mapfile.c_str());
             if (!aurora->mapManager.startUploadSession(req->mapfile.c_str(), resultCallback, &resultPromise))
             {
@@ -767,6 +776,61 @@ namespace slamware_ros_sdk {
         }
     }
     
+    bool SlamwareRosSdkServer::srvCbLocalRelocalizationRequest_(
+        slamware_ros_sdk::srv::LocalRelocalizationRequest::Request::SharedPtr req,
+        slamware_ros_sdk::srv::LocalRelocalizationRequest::Response::SharedPtr resp)
+    {
+        if (relocalization_active_.load())
+        {
+            RCLCPP_ERROR(this->get_logger(), "Relocalization already in progress");
+            resp->success = false;
+            resp->status = "busy";
+            return false;
+        }
+
+        auto aurora = safeGetAuroraSdk();
+        if (!aurora)
+        {
+            resp->success = false;
+            resp->status = "sdk_unavailable";
+            return false;
+        }
+
+        slamtec_aurora_sdk_pose_se3_t center_pose;
+        center_pose.translation.x = req->center_x;
+        center_pose.translation.y = req->center_y;
+        center_pose.translation.z = 0.0;
+
+        double half_yaw = req->center_yaw * 0.5;
+        center_pose.quaternion.x = 0.0;
+        center_pose.quaternion.y = 0.0;
+        center_pose.quaternion.z = std::sin(half_yaw);
+        center_pose.quaternion.w = std::cos(half_yaw);
+
+        uint64_t timeout_ms = (req->timeout_ms > 0) ? req->timeout_ms : 5000;
+        float search_radius = (req->search_radius > 0.0f) ? req->search_radius : 5.0f;
+
+        RCLCPP_INFO(this->get_logger(),
+            "Local relocalization requested: center=(%.2f, %.2f, yaw=%.2f rad), radius=%.1fm, timeout=%llums",
+            req->center_x, req->center_y, req->center_yaw, search_radius, (unsigned long long)timeout_ms);
+
+        bool result = aurora->controller.requireLocalRelocalization(center_pose, search_radius, timeout_ms);
+
+        if (result)
+        {
+            RCLCPP_INFO(this->get_logger(), "Local relocalization succeeded");
+            resp->success = true;
+            resp->status = "success";
+        }
+        else
+        {
+            RCLCPP_WARN(this->get_logger(), "Local relocalization failed");
+            resp->success = false;
+            resp->status = "failed";
+        }
+        return true;
+    }
+
     void RawImageListener::Init(SlamwareRosSdkServer* ros_sdk_server){
         auto& srvParams = ros_sdk_server->serverParams_();
         pubLeftRawImage_ = ros_sdk_server->create_publisher<sensor_msgs::msg::Image>(srvParams.getParameter<std::string>("left_image_raw_topic_name"), 5);

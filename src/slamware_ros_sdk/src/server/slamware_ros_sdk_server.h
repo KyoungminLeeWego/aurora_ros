@@ -18,6 +18,7 @@
 #include <slamware_ros_sdk/srv/sync_get_stcm.hpp>
 #include <slamware_ros_sdk/srv/sync_set_stcm.hpp>
 #include <slamware_ros_sdk/srv/relocalization_request.hpp>
+#include <slamware_ros_sdk/srv/local_relocalization_request.hpp>
 #include <slamware_ros_sdk/msg/relocalization_cancel_request.hpp>
 #include <slamware_ros_sdk/msg/sync_map_request.hpp>
 #include <slamware_ros_sdk/msg/clear_map_request.hpp>
@@ -123,6 +124,10 @@ namespace slamware_ros_sdk
                                          slamware_ros_sdk::srv::RelocalizationRequest::Response::SharedPtr resp);
         rclcpp::Service<slamware_ros_sdk::srv::RelocalizationRequest>::SharedPtr relocalization_request_srv_;
         void checkRelocalizationStatus();
+
+        bool srvCbLocalRelocalizationRequest_(slamware_ros_sdk::srv::LocalRelocalizationRequest::Request::SharedPtr req,
+                                              slamware_ros_sdk::srv::LocalRelocalizationRequest::Response::SharedPtr resp);
+        rclcpp::Service<slamware_ros_sdk::srv::LocalRelocalizationRequest>::SharedPtr local_relocalization_request_srv_;
 
     private:     
         std::atomic<ServerState> state_;
