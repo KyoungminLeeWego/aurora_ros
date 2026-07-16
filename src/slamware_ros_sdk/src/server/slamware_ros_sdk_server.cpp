@@ -811,10 +811,28 @@ namespace slamware_ros_sdk {
         float search_radius = (req->search_radius > 0.0f) ? req->search_radius : 5.0f;
 
         RCLCPP_INFO(this->get_logger(),
-            "Local relocalization requested: center=(%.2f, %.2f, yaw=%.2f rad), radius=%.1fm, timeout=%llums",
-            req->center_x, req->center_y, req->center_yaw, search_radius, (unsigned long long)timeout_ms);
+            "Local relocalization requested: center=(%.2f, %.2f, yaw=%.2f rad), radius=%.1fm, timeout=%llums, enter_localization_mode=%d",
+            req->center_x, req->center_y, req->center_yaw, search_radius, (unsigned long long)timeout_ms,
+            (int)req->enter_localization_mode);
 
-        bool result = aurora->controller.requireLocalRelocalization(center_pose, search_radius, timeout_ms);
+        if (req->enter_localization_mode)
+        {
+            slamtec_aurora_sdk_errorcode_t mode_errcode = SLAMTEC_AURORA_SDK_ERRORCODE_OK;
+            if (!aurora->controller.requirePureLocalizationMode(timeout_ms, &mode_errcode))
+            {
+                RCLCPP_WARN(this->get_logger(),
+                    "Pure localization mode switch failed (errcode=%d) — continuing reloc anyway", (int)mode_errcode);
+            }
+            else
+            {
+                RCLCPP_INFO(this->get_logger(), "Pure localization mode acknowledged");
+                // 디바이스가 모드 전환을 ack했어도 내부 정리 시간이 필요할 수 있어 잠시 대기
+                std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+            }
+        }
+
+        slamtec_aurora_sdk_errorcode_t reloc_errcode = SLAMTEC_AURORA_SDK_ERRORCODE_OK;
+        bool result = aurora->controller.requireLocalRelocalization(center_pose, search_radius, timeout_ms, &reloc_errcode);
 
         if (result)
         {
@@ -824,11 +842,29 @@ namespace slamware_ros_sdk {
         }
         else
         {
-            RCLCPP_WARN(this->get_logger(), "Local relocalization failed");
+            RCLCPP_WARN(this->get_logger(), "Local relocalization failed (errcode=%d)", (int)reloc_errcode);
             resp->success = false;
-            resp->status = "failed";
+            resp->status = errcodeToString_(reloc_errcode);
         }
         return true;
+    }
+
+    const char* SlamwareRosSdkServer::errcodeToString_(slamtec_aurora_sdk_errorcode_t errcode)
+    {
+        // slamtec_aurora_sdk_errorcode_t는 uint32_t지만 enum 값이 음수라 int로 비교
+        switch (static_cast<int>(errcode))
+        {
+        case SLAMTEC_AURORA_SDK_ERRORCODE_OK:                  return "ok";
+        case SLAMTEC_AURORA_SDK_ERRORCODE_OP_FAILED:           return "op_failed";
+        case SLAMTEC_AURORA_SDK_ERRORCODE_INVALID_ARGUMENT:    return "invalid_argument";
+        case SLAMTEC_AURORA_SDK_ERRORCODE_NOT_SUPPORTED:       return "not_supported";
+        case SLAMTEC_AURORA_SDK_ERRORCODE_NOT_IMPLEMENTED:     return "not_implemented";
+        case SLAMTEC_AURORA_SDK_ERRORCODE_TIMEOUT:             return "timeout";
+        case SLAMTEC_AURORA_SDK_ERRORCODE_IO_ERROR:            return "io_error";
+        case SLAMTEC_AURORA_SDK_ERRORCODE_NOT_READY:           return "not_ready";
+        case SLAMTEC_AURORA_SDK_ERRORCODE_INSUFFICIENT_BUFFER: return "insufficient_buffer";
+        default:                                               return "unknown_error";
+        }
     }
 
     void RawImageListener::Init(SlamwareRosSdkServer* ros_sdk_server){

@@ -3,6 +3,8 @@ float64 center_y
 float64 center_yaw
 float32 search_radius
 uint32 timeout_ms
+bool enter_localization_mode
 ---
 bool success
 string status
+string mode_status

@@ -127,6 +127,7 @@ namespace slamware_ros_sdk
 
         bool srvCbLocalRelocalizationRequest_(slamware_ros_sdk::srv::LocalRelocalizationRequest::Request::SharedPtr req,
                                               slamware_ros_sdk::srv::LocalRelocalizationRequest::Response::SharedPtr resp);
+        static const char* errcodeToString_(slamtec_aurora_sdk_errorcode_t errcode);
         rclcpp::Service<slamware_ros_sdk::srv::LocalRelocalizationRequest>::SharedPtr local_relocalization_request_srv_;
 
     private:     
