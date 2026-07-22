@@ -1,0 +1,8 @@
+#request
+# SDK 연결을 끊고 다시 연결한다. jump 후 SDK가 DeviceInitFailed로 붕괴하고
+# feature가 폭락한 상태(STCM 재로드로 복구 불가)에서 SLAMTEC이 권고한 대응.
+
+---
+
+#response
+bool success

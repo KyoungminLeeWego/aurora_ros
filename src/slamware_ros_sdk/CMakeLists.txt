@@ -69,6 +69,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
  srv/SyncSetStcm.srv
  srv/RelocalizationRequest.srv
  srv/LocalRelocalizationRequest.srv
+ srv/ReconnectRequest.srv
  DEPENDENCIES nav_msgs sensor_msgs std_msgs
 )
 

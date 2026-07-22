@@ -354,6 +354,10 @@ namespace slamware_ros_sdk {
             local_relocalization_request_srv_ = this->create_service<slamware_ros_sdk::srv::LocalRelocalizationRequest>(
                 "/slamware_ros_sdk_server_node/local_relocalization",
                 std::bind(&SlamwareRosSdkServer::srvCbLocalRelocalizationRequest_, this, std::placeholders::_1, std::placeholders::_2));
+
+            reconnect_request_srv_ = this->create_service<slamware_ros_sdk::srv::ReconnectRequest>(
+                "/slamware_ros_sdk_server_node/reconnect",
+                std::bind(&SlamwareRosSdkServer::srvCbReconnectRequest_, this, std::placeholders::_1, std::placeholders::_2));
         }
         return true;
     }
@@ -846,6 +850,31 @@ namespace slamware_ros_sdk {
             resp->success = false;
             resp->status = errcodeToString_(reloc_errcode);
         }
+        return true;
+    }
+
+    bool SlamwareRosSdkServer::srvCbReconnectRequest_(
+        slamware_ros_sdk::srv::ReconnectRequest::Request::SharedPtr /*req*/,
+        slamware_ros_sdk::srv::ReconnectRequest::Response::SharedPtr resp)
+    {
+        // jump 후 SDK가 DeviceInitFailed로 붕괴하고 feature가 폭락한 상태에서는
+        // STCM 재로드로 복구되지 않는다. SLAMTEC 권고대로 연결을 끊고 다시 연결한다.
+        RCLCPP_WARN(this->get_logger(), "Reconnect requested: disconnecting Aurora SDK...");
+        disconnectAuroraSdk_();
+
+        RCLCPP_INFO(this->get_logger(), "Reconnecting to Aurora SDK...");
+        connectAuroraSdk_();
+
+        bool connected = auroraSdkConnected_.load();
+        if (connected)
+        {
+            RCLCPP_INFO(this->get_logger(), "Reconnect succeeded");
+        }
+        else
+        {
+            RCLCPP_ERROR(this->get_logger(), "Reconnect failed — SDK still disconnected");
+        }
+        resp->success = connected;
         return true;
     }
 

@@ -19,6 +19,7 @@
 #include <slamware_ros_sdk/srv/sync_set_stcm.hpp>
 #include <slamware_ros_sdk/srv/relocalization_request.hpp>
 #include <slamware_ros_sdk/srv/local_relocalization_request.hpp>
+#include <slamware_ros_sdk/srv/reconnect_request.hpp>
 #include <slamware_ros_sdk/msg/relocalization_cancel_request.hpp>
 #include <slamware_ros_sdk/msg/sync_map_request.hpp>
 #include <slamware_ros_sdk/msg/clear_map_request.hpp>
@@ -129,6 +130,12 @@ namespace slamware_ros_sdk
                                               slamware_ros_sdk::srv::LocalRelocalizationRequest::Response::SharedPtr resp);
         static const char* errcodeToString_(slamtec_aurora_sdk_errorcode_t errcode);
         rclcpp::Service<slamware_ros_sdk::srv::LocalRelocalizationRequest>::SharedPtr local_relocalization_request_srv_;
+
+        // jump 후 SDK가 DeviceInitFailed로 붕괴하고 feature가 폭락한 상태
+        // (STCM 재로드로 복구 불가)에서 연결을 끊고 다시 연결한다. SLAMTEC 권고.
+        bool srvCbReconnectRequest_(slamware_ros_sdk::srv::ReconnectRequest::Request::SharedPtr req,
+                                    slamware_ros_sdk::srv::ReconnectRequest::Response::SharedPtr resp);
+        rclcpp::Service<slamware_ros_sdk::srv::ReconnectRequest>::SharedPtr reconnect_request_srv_;
 
     private:     
         std::atomic<ServerState> state_;
